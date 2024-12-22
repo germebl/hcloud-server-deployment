@@ -37,58 +37,73 @@ By default, Hetzner Cloud **randomly assigns servers to any available subnet** w
 1. Create a project folder and clone this Repo to it
 
 2. Create a Virtual Environment (Recommended)  
+```bash
 python3 -m venv venv  
 source venv/bin/activate  
+```
 
 2. Install Required Dependencies  
+```bash
 pip install ansible  
 ansible-galaxy collection install hetzner.hcloud  
 pip install ipaddress  
+```
 
 3. Set Your Hetzner API Token  
+```bash
 export HCLOUD_TOKEN="your_hetzner_cloud_api_token"  
+```
 ---
 
 ## Running the Playbook  
 
-Basic Deployment  
+**Basic Deployment**  
+```bash
 ansible-playbook deploy_hcloud_server.yml -e server_name=my-server -e server_type=cpx21  
+```
 
 ---
 
 ## Real-World Use Cases – Example Commands  
 
 1. Standard Server Deployment (No Subnet Selection)  
+```bash
 ansible-playbook deploy_hcloud_server.yml \  
   -e server_name=web-server-1 \  
   -e server_type=cpx21  
+```
 
 2. Deploy a Server with a 10 GB Volume  
+```bash
 ansible-playbook deploy_hcloud_server.yml \  
   -e server_name=db-server \  
   -e server_type=cpx21 \  
   -e volume_size=10  
+```
 
 3. Deploy a Server in a Specific Subnet (10.0.1.0/24)  
+```bash
 ansible-playbook deploy_hcloud_server.yml \  
   -e server_name=app-server \  
   -e server_type=cpx21 \  
   -e subnet=10.0.1.0/24  
+```
 
 4. Combine Subnet and Volume  
+```bash
 ansible-playbook deploy_hcloud_server.yml \  
   -e server_name=multi-node-1 \  
   -e server_type=cpx21 \  
   -e volume_size=20 \  
   -e subnet=10.0.1.0/24  
+```
 
 ---
 
 ## Comprehensive Variable Breakdown  
 
-+------------------------+-----------------------------------------------------+----------+--------------+--------------------------------------------------+----------------------------+  
 | Variable               | Description                                         | Type     | Required     | Dependencies                                     | Default Value              |  
-+------------------------+-----------------------------------------------------+----------+--------------+--------------------------------------------------+----------------------------+  
+|-----------------------|-----------------------------------------------------|----------|--------------|--------------------------------------------------|----------------------------|  
 | hcloud_token           | Hetzner Cloud API token                             | String   | Yes          | Must be set in the environment as HCLOUD_TOKEN   | -                          |  
 | server_name            | Name of the server to create                        | String   | Yes          | -                                                | example-server             |  
 | server_type            | Hetzner server type (e.g., cpx21)                   | String   | Yes          | -                                                | cpx21                      |  
@@ -103,6 +118,4 @@ ansible-playbook deploy_hcloud_server.yml \
 | subnet                 | Subnet (e.g., 10.0.1.0/24)                          | String   | No           | private_network_name must be defined             | null                       |  
 | enable_ipv4            | Enable IPv4                                         | Boolean  | No           | -                                                | true                       |  
 | enable_ipv6            | Enable IPv6                                         | Boolean  | No           | -                                                | true                       |  
-| cloud_init_file        | Path to Cloud-Init configuration file               | String   | No           | -                                                | cloud-init/cloud-init.yaml |  
-+------------------------+-----------------------------------------------------+----------+--------------+--------------------------------------------------+----------------------------+  
-
+| cloud_init_file        | Path to Cloud-Init configuration file               | String   | No           | -                                                | cloud-init/cloud-init.yaml |

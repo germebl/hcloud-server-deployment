@@ -1,0 +1,169 @@
+---
+- name: Deploy server on Hetzner Cloud with optional features
+  hosts: localhost
+  gather_facts: no
+  vars:
+    hcloud_token: "{{ lookup('env', 'HCLOUD_TOKEN') }}"
+    server_name: "example-server"
+    server_type: "cpx21"
+    image: "ubuntu-22.04"
+    location: "fsn1"
+    ssh_keys: []
+    volume_size: null
+    volume_name: "{{ server_name }}-volume"
+    volume_format: "ext4"
+    private_network_name: null
+    private_network_id: null
+    subnet: null
+    enable_ipv4: true
+    enable_ipv6: true
+    cloud_init_file: "cloud-init/cloud-init.yaml"
+
+  tasks:
+    - name: Check if server already exists
+      uri:
+        url: https://api.hetzner.cloud/v1/servers
+        method: GET
+        headers:
+          Authorization: "Bearer {{ hcloud_token }}"
+      register: servers_response
+
+    - name: Fail if server with the same name exists
+      fail:
+        msg: "A server with the name '{{ server_name }}' already exists!"
+      when: >
+        server_name in (servers_response.json.servers | map(attribute='name') | list)
+
+    - name: Get all networks from Hetzner Cloud
+      uri:
+        url: https://api.hetzner.cloud/v1/networks
+        method: GET
+        headers:
+          Authorization: "Bearer {{ hcloud_token }}"
+      register: networks_response
+      when: private_network_name is not none
+
+    - name: Extract network ID from name
+      set_fact:
+        private_network_id: >-
+          {{ networks_response.json.networks | selectattr('name', 'equalto', private_network_name) | map(attribute='id') | first }}
+      when: private_network_name is not none
+
+    - name: Set target network fact
+      set_fact:
+        target_network: >-
+          {{ networks_response.json.networks |
+             selectattr('id', 'equalto', private_network_id | int) |
+             list | first }}
+      when: private_network_name is not none
+
+    - name: Fail if no network found
+      fail:
+        msg: "No network found with name {{ private_network_name }} or id {{ private_network_id }}"
+      when: private_network_name is not none and target_network is not defined
+
+    - name: Create volume (if requested)
+      hetzner.hcloud.volume:
+        api_token: "{{ hcloud_token }}"
+        name: "{{ volume_name }}"
+        size: "{{ volume_size }}"
+        location: "{{ location }}"
+        automount: true
+        format: "{{ volume_format }}"
+      when: volume_size is not none
+      register: hcloud_volume
+
+    - name: Create Hetzner Cloud server
+      hetzner.hcloud.server:
+        api_token: "{{ hcloud_token }}"
+        name: "{{ server_name }}"
+        server_type: "{{ server_type }}"
+        image: "{{ image }}"
+        location: "{{ location }}"
+        ssh_keys: "{{ ssh_keys | default([]) }}"
+        volumes: "{{ [hcloud_volume.hcloud_volume.id] if volume_size else omit }}"
+        enable_ipv4: "{{ enable_ipv4 }}"
+        enable_ipv6: "{{ enable_ipv6 }}"
+        private_networks: "{{ [private_network_id] if subnet is none and private_network_name is not none else [] }}"
+        user_data: "{{ lookup('file', cloud_init_file) if cloud_init_file is exists else omit }}"
+        state: "{{ 'present' if subnet is none else 'stopped' }}"
+      register: hcloud_server
+
+    - name: Attach to private network with manual IP (if subnet defined)
+      when: subnet is not none and private_network_name is not none
+      block:
+        - name: Get all servers from Hetzner Cloud
+          uri:
+            url: https://api.hetzner.cloud/v1/servers
+            method: GET
+            headers:
+              Authorization: "Bearer {{ hcloud_token }}"
+          register: servers_response
+
+        - name: Get all loadbalancers from Hetzner Cloud
+          uri:
+            url: https://api.hetzner.cloud/v1/load_balancers
+            method: GET
+            headers:
+              Authorization: "Bearer {{ hcloud_token }}"
+          register: loadbalancers_response
+
+        - name: Extract used IPs by servers in subnet
+          set_fact:
+            server_ips_in_subnet: >-
+              {{
+                servers_response.json.servers |
+                map(attribute='private_net') |
+                sum(start=[]) |
+                selectattr('network', 'equalto', target_network.id) |
+                map(attribute='ip') |
+                list
+              }}
+
+        - name: Extract used IPs by loadbalancers in subnet
+          set_fact:
+            loadbalancer_ips_in_subnet: >-
+              {{
+                loadbalancers_response.json.load_balancers |
+                map(attribute='private_net') |
+                sum(start=[]) |
+                selectattr('network', 'equalto', target_network.id) |
+                map(attribute='ip') |
+                list
+              }}
+
+        - name: Combine and deduplicate used IPs
+          set_fact:
+            used_ips_in_subnet: "{{ (server_ips_in_subnet + loadbalancer_ips_in_subnet) | unique }}"
+
+        - name: Calculate available IPs
+          command: "python3 ip_range.py {{ subnet }}"
+          register: all_ips_in_subnet_output
+
+        - name: Get free IP (4th octet approach)
+          set_fact:
+            smallest_available_ip: >-
+              {{
+                subnet.split('.')[0:3] | join('.') + '.' +
+                (all_ips_in_subnet_output.stdout.split(',') |
+                difference(used_ips_in_subnet) |
+                map('split', '.') |
+                map('last') |
+                map('int') |
+                sort |
+                first | string)
+              }}
+
+        - name: Attach server to subnet manually
+          hetzner.hcloud.server_network:
+            api_token: "{{ hcloud_token }}"
+            server: "{{ hcloud_server.hcloud_server.id }}"
+            network: "{{ private_network_id }}"
+            ip: "{{ smallest_available_ip }}"
+
+        - name: Start the server after subnet attachment
+          hetzner.hcloud.server:
+            api_token: "{{ hcloud_token }}"
+            id: "{{ hcloud_server.hcloud_server.id }}"
+            state: started
+          when: subnet is not none

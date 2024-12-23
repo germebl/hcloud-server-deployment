@@ -11,6 +11,7 @@
     ssh_keys: []
     volume_size: null
     volume_name: "{{ server_name }}-volume"
+    volume_automount: true
     volume_format: "ext4"
     private_network_name: null
     private_network_id: null
@@ -68,7 +69,7 @@
         name: "{{ volume_name }}"
         size: "{{ volume_size }}"
         location: "{{ location }}"
-        automount: true
+        automount: "{{ volume_automount }}"
         format: "{{ volume_format }}"
       when: volume_size is not none
       register: hcloud_volume

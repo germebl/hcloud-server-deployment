@@ -59,43 +59,60 @@ export HCLOUD_TOKEN="your_hetzner_cloud_api_token"
 
 **Basic Deployment**  
 ```bash
-ansible-playbook deploy_hcloud_server.yml -e server_name=my-server -e server_type=cpx21  
+ansible-playbook deploy_hcloud_server.yml -e server_name=my-server -e server_type=cpx21
 ```
 
 ---
 
 ## Real-World Use Cases – Example Commands  
 
-1. Standard Server Deployment (No Subnet Selection)  
+1. Standard Server Deployment (No Volume, Network and Subnet Selection)  
 ```bash
-ansible-playbook deploy_hcloud_server.yml \  
-  -e server_name=web-server-1 \  
-  -e server_type=cpx21  
+ansible-playbook deploy_hcloud_server.yml \
+  -e server_name=web-server-1 \
+  -e server_type=cpx21
 ```
 
 2. Deploy a Server with a 10 GB Volume  
 ```bash
-ansible-playbook deploy_hcloud_server.yml \  
-  -e server_name=db-server \  
-  -e server_type=cpx21 \  
-  -e volume_size=10  
+ansible-playbook deploy_hcloud_server.yml \
+  -e server_name=db-server \
+  -e server_type=cpx21 \
+  -e volume_size=10
 ```
 
-3. Deploy a Server in a Specific Subnet (10.0.1.0/24)  
+3. Deploy a Server in a Specific Network (`my-network`) with Hetzner's automatic Assignment (not recommended for multiple subnets)
 ```bash
-ansible-playbook deploy_hcloud_server.yml \  
-  -e server_name=app-server \  
-  -e server_type=cpx21 \  
-  -e subnet=10.0.1.0/24  
+ansible-playbook deploy_hcloud_server.yml \
+  -e server_name=app-server \
+  -e server_type=cpx21 \
+  -e private_network_name 
 ```
 
-4. Combine Subnet and Volume  
+4. Deploy a Server and assign a specific subnet (`10.0.1.0/24`) of a specific network (`my-network`) (recommended for multiple subnets)
 ```bash
-ansible-playbook deploy_hcloud_server.yml \  
-  -e server_name=multi-node-1 \  
-  -e server_type=cpx21 \  
-  -e volume_size=20 \  
-  -e subnet=10.0.1.0/24  
+ansible-playbook deploy_hcloud_server.yml \
+  -e server_name=app-server \
+  -e server_type=cpx21 \
+  -e private_network_name=my-network \
+  -e subnet=10.0.1.0/24
+```
+
+5. Deploy a Server with a Volume of `20 GB` and attach it automatically
+```bash
+ansible-playbook deploy_hcloud_server.yml \
+  -e server_name=multi-node-1 \
+  -e server_type=cpx21 \
+  -e volume_size=20
+```
+
+6. Deploy a Server with a `20 GB` Volume, dont mount it
+```bash
+ansible-playbook deploy_hcloud_server.yml \
+  -e server_name=multi-node-1 \
+  -e server_type=cpx21 \
+  -e volume_size=20  \
+  -e volume_automount=false
 ```
 
 ---
@@ -112,6 +129,7 @@ ansible-playbook deploy_hcloud_server.yml \
 | ssh_keys               | List of SSH keys                                    | List     | No           | -                                                | []                         |  
 | volume_size            | Size of the volume to create (GB)                   | Integer  | No           | -                                                | null                       |  
 | volume_name            | Name of the volume                                  | String   | No           | -                                                | server_name-volume         |  
+| volume_automount         | Filesystem automount                              | Boolean  | No           | -                                                | true                       |  
 | volume_format          | Filesystem format for the volume                    | String   | No           | -                                                | ext4                       |  
 | private_network_name   | Name of the private network                         | String   | No           | -                                                | null                       |  
 | private_network_id     | Network ID (auto-detected)                          | String   | No           | Derived from private_network_name                | null                       |  

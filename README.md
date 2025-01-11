@@ -129,7 +129,7 @@ ansible-playbook deploy_hcloud_server.yml \
 | ssh_keys               | List of SSH keys                                    | List     | No           | -                                                | []                         |  
 | volume_size            | Size of the volume to create (GB)                   | Integer  | No           | -                                                | null                       |  
 | volume_name            | Name of the volume                                  | String   | No           | -                                                | server_name-volume         |  
-| volume_automount         | Filesystem automount                              | Boolean  | No           | -                                                | true                       |  
+| volume_automount       | Filesystem automount                                | Boolean  | No           | -                                                | true                       |  
 | volume_format          | Filesystem format for the volume                    | String   | No           | -                                                | ext4                       |  
 | private_network_name   | Name of the private network                         | String   | No           | -                                                | null                       |  
 | private_network_id     | Network ID (auto-detected)                          | String   | No           | Derived from private_network_name                | null                       |  
